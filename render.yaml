@@ -3,8 +3,7 @@ services:
     name: moussa-portfolio
     plan: free
     branch: main
-    buildCommand: ""
-    startCommand: ""
+    env: docker
     envVars:
       - key: APP_KEY
         value: base64:3gsbK5OEetfTfVoUeVxHmNK4oyCANVbkomYRNVIg19k=
