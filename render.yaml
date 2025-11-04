@@ -1,13 +1,10 @@
 services:
   - type: web
     name: moussa-portfolio
-    env: php
     plan: free
     branch: main
-    buildCommand: |
-      composer install
-      php artisan key:generate
-    startCommand: php artisan serve --host 0.0.0.0 --port 10000
+    buildCommand: ""
+    startCommand: ""
     envVars:
       - key: APP_KEY
         value: base64:3gsbK5OEetfTfVoUeVxHmNK4oyCANVbkomYRNVIg19k=
