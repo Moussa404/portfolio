@@ -2,7 +2,7 @@
 FROM php:8.2-cli
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /opt/render/project/src
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -28,8 +28,10 @@ RUN php artisan key:generate || true
 EXPOSE 10000
 
 # Start the Laravel app (auto-create SQLite if missing)
-CMD if [ ! -f /var/www/html/database/database.sqlite ]; then \
-      touch /var/www/html/database/database.sqlite && chmod 666 /var/www/html/database/database.sqlite; \
+CMD if [ ! -f /opt/render/project/src/database/database.sqlite ]; then \
+      mkdir -p /opt/render/project/src/database && \
+      touch /opt/render/project/src/database/database.sqlite && \
+      chmod 666 /opt/render/project/src/database/database.sqlite; \
     fi && \
     php artisan migrate --force && \
     php artisan serve --host=0.0.0.0 --port=10000
