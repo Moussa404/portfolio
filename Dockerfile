@@ -27,11 +27,11 @@ RUN php artisan key:generate || true
 # Expose the Laravel port
 EXPOSE 10000
 
-# Start the Laravel app (auto-create SQLite if missing)
+# Start the Laravel app (auto-create SQLite if missing and serve from /public)
 CMD if [ ! -f /opt/render/project/src/database/database.sqlite ]; then \
       mkdir -p /opt/render/project/src/database && \
       touch /opt/render/project/src/database/database.sqlite && \
       chmod 666 /opt/render/project/src/database/database.sqlite; \
     fi && \
     php artisan migrate --force && \
-    php artisan serve --host=0.0.0.0 --port=10000
+    php -S 0.0.0.0:10000 -t public
