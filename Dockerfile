@@ -1,56 +1,37 @@
-# ----------------------------
-# Stage 1: Composer dependencies
-# ----------------------------
-FROM composer:2 AS vendor
-
-WORKDIR /app
-COPY composer.json composer.lock ./
-
-# safer, lighter install for limited environments
-RUN COMPOSER_MEMORY_LIMIT=-1 composer install \
-    --no-dev \
-    --no-scripts \
-    --ignore-platform-reqs \
-    --prefer-dist \
-    --no-interaction \
-    --optimize-autoloader
-
-
-# ----------------------------
-# Stage 2: PHP + Apache server
-# ----------------------------
+# Use official PHP image with Apache
 FROM php:8.2-apache
-
-# Point Apache to Laravel's public folder
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf && \
-    sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Working directory inside container
-WORKDIR /var/www/html
 
 # Install required PHP extensions
 RUN apt-get update && apt-get install -y \
-    git unzip libzip-dev libpng-dev sqlite3 libsqlite3-dev \
-    && docker-php-ext-install pdo pdo_sqlite zip gd
+    unzip \
+    git \
+    sqlite3 \
+    libsqlite3-dev \
+    && docker-php-ext-install pdo pdo_sqlite pdo_mysql
 
-# Enable Laravel's route rewriting
+# Enable Apache mod_rewrite for Laravel routes
 RUN a2enmod rewrite
 
-# Copy all project files
+# Set the working directory
+WORKDIR /var/www/html
+
+# Copy all project files into the container
 COPY . .
 
-# Copy vendor dependencies from the Composer stage
-COPY --from=vendor /app/vendor ./vendor
+# Set correct permissions for Laravel storage and cache
+RUN chmod -R 777 storage bootstrap/cache
 
-# Fix permissions
-RUN chmod -R 775 storage bootstrap/cache || true
+# Configure Apache to serve Laravel's public folder
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html/public\n\
+    <Directory /var/www/html/public>\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-# Clear and rebuild caches
-RUN php artisan config:clear || true && php artisan optimize:clear || true && php artisan view:clear || true
+# Expose port 80
+EXPOSE 80
 
-# Expose port for Railway
-EXPOSE 8080
-
-# Start Apache
+# Start Apache server
 CMD ["apache2-foreground"]
