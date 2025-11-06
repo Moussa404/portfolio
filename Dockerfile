@@ -45,5 +45,8 @@ RUN mkdir -p database && touch database/database.sqlite && chmod 666 database/da
 # Expose port 80
 EXPOSE 80
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Run Apache with Laravel's /public as the web root
+CMD rm -rf /var/www/html && \
+    cp -r /opt/render/project/src /var/www/html && \
+    sed -i 's#/var/www/html#/var/www/html/public#g' /etc/apache2/sites-available/000-default.conf && \
+    apache2-foreground
