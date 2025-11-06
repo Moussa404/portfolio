@@ -65,5 +65,7 @@ RUN php artisan config:clear || true && php artisan optimize:clear || true && ph
 # Expose port 8080 for Railway
 EXPOSE 8080
 
+RUN ls -R /var/www/html/public
+
 # Start Apache
 CMD ["apache2-foreground"]
