@@ -1,10 +1,10 @@
-# Use official PHP image with necessary extensions
-FROM php:8.2-cli
+# Use official PHP image with Apache (auto serves /public)
+FROM php:8.2-apache
 
 # Set working directory
-WORKDIR /opt/render/project/src
+WORKDIR /var/www/html
 
-# Install dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     unzip \
     sqlite3 \
@@ -12,11 +12,26 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     && docker-php-ext-install pdo pdo_sqlite zip
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Enable Apache rewrite module (for Laravel routing)
+RUN a2enmod rewrite
 
 # Copy project files
 COPY . .
+
+# Copy the Laravel public folder to Apache root
+COPY ./public /var/www/html/
+
+# Set up Apache virtual host for Laravel
+RUN echo '<VirtualHost *:80>\n\
+    DocumentRoot /var/www/html\n\
+    <Directory /var/www/html>\n\
+        AllowOverride All\n\
+        Require all granted\n\
+    </Directory>\n\
+</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
@@ -24,14 +39,11 @@ RUN composer install --no-dev --optimize-autoloader
 # Generate Laravel key if missing
 RUN php artisan key:generate || true
 
-# Expose the Laravel port
-EXPOSE 10000
+# Create SQLite database if missing
+RUN mkdir -p database && touch database/database.sqlite && chmod 666 database/database.sqlite
 
-# Start the Laravel app (auto-create SQLite if missing and serve from /public)
-CMD if [ ! -f /opt/render/project/src/database/database.sqlite ]; then \
-      mkdir -p /opt/render/project/src/database && \
-      touch /opt/render/project/src/database/database.sqlite && \
-      chmod 666 /opt/render/project/src/database/database.sqlite; \
-    fi && \
-    php artisan migrate --force && \
-    php -S 0.0.0.0:10000 -t public
+# Expose port 80
+EXPOSE 80
+
+# Start Apache
+CMD ["apache2-foreground"]
