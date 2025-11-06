@@ -13,4 +13,5 @@ fi
 php artisan migrate --force || true
 
 # Start the Laravel app
-php artisan serve --host=0.0.0.0 --port=8080 --public=public
+php artisan optimize:clear
+php -s 0.0.0.0:$PORT -t public
