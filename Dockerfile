@@ -1,10 +1,9 @@
-# Use official PHP image with Apache (auto serves /public)
 FROM php:8.2-apache
 
-# Set working directory
+# Set the working directory for Laravel
 WORKDIR /var/www/html
 
-# Install system dependencies
+# Install system packages needed for Laravel + SQLite
 RUN apt-get update && apt-get install -y \
     unzip \
     sqlite3 \
@@ -12,41 +11,29 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     && docker-php-ext-install pdo pdo_sqlite zip
 
-# Enable Apache rewrite module (for Laravel routing)
+# Enable Apache mod_rewrite for Laravel routes
 RUN a2enmod rewrite
 
-# Copy project files
-COPY . .
+# Copy project files into the container
+COPY . /var/www/html
 
-# Copy the Laravel public folder to Apache root
-COPY ./public /var/www/html/
+# Set up Apache so the public folder is the web root
+RUN sed -i 's#/var/www/html#/var/www/html/public#g' /etc/apache2/sites-available/000-default.conf
 
-# Set up Apache virtual host for Laravel
-RUN echo '<VirtualHost *:80>\n\
-    DocumentRoot /var/www/html\n\
-    <Directory /var/www/html>\n\
-        AllowOverride All\n\
-        Require all granted\n\
-    </Directory>\n\
-</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
-
-# Install Composer
+# Copy Composer from its image
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Generate Laravel key if missing
-RUN php artisan key:generate || true
-
-# Create SQLite database if missing
+# Create the SQLite database if it doesn't exist
 RUN mkdir -p database && touch database/database.sqlite && chmod 666 database/database.sqlite
 
-# Expose port 80
+# Generate Laravel key (ignore if already exists)
+RUN php artisan key:generate || true
+
+# Expose port 80 for Apache
 EXPOSE 80
 
-# Run Apache with Laravel's /public as the web root
-CMD rm -rf /var/www/html && \
-    cp -r /opt/render/project/src /var/www/html && \
-    sed -i 's#/var/www/html#/var/www/html/public#g' /etc/apache2/sites-available/000-default.conf && \
-    apache2-foreground
+# Start Apache
+CMD ["apache2-foreground"]
