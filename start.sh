@@ -12,6 +12,9 @@ fi
 # Run Laravel migrations (optional)
 php artisan migrate --force || true
 
-# Start the Laravel app
+# Clear caches
 php artisan optimize:clear
-php -S 0.0.0.0:$PORT -t public
+
+# Explicitly serve from the 'public' folder
+cd public
+php -S 0.0.0.0:$PORT ../server.php
