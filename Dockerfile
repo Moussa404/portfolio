@@ -19,13 +19,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 RUN composer install --no-dev --optimize-autoloader
 
-RUN mkdir -p database && touch database/database.sqlite && chmod 666 database/database.sqlite
+# Create database and fix permissions for Laravel writable directories
+RUN mkdir -p database storage/logs bootstrap/cache && \
+    touch database/database.sqlite && chmod -R 777 storage bootstrap/cache database
 
-RUN chmod -R 775 storage bootstrap/cache && \
-    chown -R www-data:www-data storage bootstrap/cache database
-
+# Generate Laravel key (ignore if already exists)
 RUN php artisan key:generate || true
 
 EXPOSE 80
-
 CMD ["apache2-foreground"]
