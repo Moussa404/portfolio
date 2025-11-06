@@ -1,17 +1,15 @@
-# Stage 1: Build Composer dependencies
-FROM composer:2 AS vendor
-
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader --no-interaction
-
-# Stage 2: Laravel App with PHP + Apache
+# Use official PHP + Apache image
 FROM php:8.2-apache
+
+# Point Apache DocumentRoot to Laravel's /public directory
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf && \
+    sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Install required PHP extensions and tools
+# Install required system packages and PHP extensions
 RUN apt-get update && apt-get install -y \
     git unzip libzip-dev libpng-dev sqlite3 libsqlite3-dev \
     && docker-php-ext-install pdo pdo_sqlite zip gd
@@ -19,21 +17,26 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite for Laravel routes
 RUN a2enmod rewrite
 
-# Copy application source and vendor files
+# Copy project files into container
 COPY . .
-COPY --from=vendor /app/vendor ./vendor
 
-# Ensure Laravel directories are writable
+# Ensure Laravel storage and cache directories are writable
 RUN chmod -R 775 storage bootstrap/cache || true
 
-# Generate key if missing (safe to fail if exists)
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install PHP dependencies (no dev, optimized for production)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+# Generate Laravel app key if missing (won’t fail if already exists)
 RUN php artisan key:generate || true
 
-RUN php artisan config:clear || true && php artisan cache:clear || true && php artisan view:clear || true
+# Clear old caches to ensure fresh .env and paths are used
+RUN php artisan config:clear || true && php artisan optimize:clear || true && php artisan view:clear || true
 
-
-# Expose port 8080 (for Railway)
+# Expose port 8080 for Railway
 EXPOSE 8080
 
-# Start Apache
+# Start Apache web server
 CMD ["apache2-foreground"]
