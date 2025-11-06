@@ -5,7 +5,16 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+# safer, lighter install for limited environments
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install \
+    --no-dev \
+    --no-scripts \
+    --ignore-platform-reqs \
+    --prefer-dist \
+    --no-interaction \
+    --optimize-autoloader
+
 
 # ----------------------------
 # Stage 2: PHP + Apache server
