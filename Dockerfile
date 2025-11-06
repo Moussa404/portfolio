@@ -1,30 +1,34 @@
+# Use PHP with Apache so public/ assets serve correctly
 FROM php:8.2-apache
 
+# Set working directory
 WORKDIR /var/www/html
 
+# Install dependencies
 RUN apt-get update && apt-get install -y \
-    unzip \
-    sqlite3 \
-    libsqlite3-dev \
-    libzip-dev \
-    && docker-php-ext-install pdo pdo_sqlite zip
+    git unzip libzip-dev libpng-dev sqlite3 libsqlite3-dev \
+    && docker-php-ext-install pdo pdo_sqlite zip gd
 
+# Enable Apache rewrite module for Laravel routes
 RUN a2enmod rewrite
 
-COPY . /var/www/html
+# Copy project files
+COPY . .
 
-RUN sed -i 's#/var/www/html#/var/www/html/public#g' /etc/apache2/sites-available/000-default.conf
-
+# Copy Composer from official image
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Create database and fix permissions for Laravel writable directories
-RUN mkdir -p database storage/logs bootstrap/cache && \
-    touch database/database.sqlite && chmod -R 777 storage bootstrap/cache database
+# Set proper permissions for storage and bootstrap/cache
+RUN chmod -R 775 storage bootstrap/cache || true
 
-# Generate Laravel key (ignore if already exists)
+# Generate Laravel key if missing
 RUN php artisan key:generate || true
 
-EXPOSE 80
+# Expose port
+EXPOSE 8080
+
+# Start Apache
 CMD ["apache2-foreground"]
