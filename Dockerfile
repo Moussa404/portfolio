@@ -29,7 +29,8 @@ RUN chmod -R 775 storage bootstrap/cache || true
 # Generate key if missing (safe to fail if exists)
 RUN php artisan key:generate || true
 
-RUN php artisan config:clear && php artisan cache:clear && php artisan view:clear
+RUN php artisan config:clear || true && php artisan cache:clear || true && php artisan view:clear || true
+
 
 # Expose port 8080 (for Railway)
 EXPOSE 8080
