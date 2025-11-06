@@ -3,7 +3,7 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader --no-interaction
 
 # Stage 2: Laravel App with PHP + Apache
 FROM php:8.2-apache
@@ -19,19 +19,17 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite for Laravel routes
 RUN a2enmod rewrite
 
-# Copy the Laravel app files
+# Copy application source and vendor files
 COPY . .
-
-# Copy vendor dependencies from builder stage
 COPY --from=vendor /app/vendor ./vendor
 
-# Set correct permissions for Laravel
+# Ensure Laravel directories are writable
 RUN chmod -R 775 storage bootstrap/cache || true
 
-# Generate Laravel key if missing
+# Generate key if missing (safe to fail if exists)
 RUN php artisan key:generate || true
 
-# Expose Apache port
+# Expose port 8080 (for Railway)
 EXPOSE 8080
 
 # Start Apache
